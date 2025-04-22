@@ -1,0 +1,182 @@
+<div >
+    <section class="py-5 inner-section">
+        <div class="container">
+            <h2>Thanh toán</h2>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div>
+                        <table class="table fs-sm mb-0">
+                            <tbody>
+                                <tr>
+                                    <td colspan="2" align="center"><strong>THÔNG TIN ĐƠN HÀNG</strong></td>
+                                </tr>
+                                <tr>
+                                </tr>
+                                <tr>
+                                    <td>Số dư của tôi:</td>
+                                    <td class="text-right"><strong>10.000.000đ</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Tổng tiền thanh toán:</td>
+                                    <td class="text-right"><strong style="color: blue;" id="into_pay">{{ number_format($total) }}đ</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Hiển thị thông tin sản phẩm -->
+                    <div class="mb-4 mt-4">
+                        <div>
+                            <table class="table fs-sm mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td colspan="2" align="center"><strong>THÔNG TIN SẢN PHẨM</strong></td>
+                                    </tr>
+                                    <tr>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div id="accordion">
+                                                <div class="card">
+                                                    <div class="card-header">
+                                                        <a class="btn" data-bs-toggle="collapse" href="#collapse3">
+                                                            SP1
+                                                        </a>
+                                                    </div>
+                                                    <div id="collapse3" class="collapse" data-bs-parent="#accordion">
+                                                        <div class="card-body">
+                                                            <ul>
+                                                                <li><strong>Số lượng:</strong> 2</li>
+                                                                <li><strong>Giá tiền:</strong> 200,000 VND</li>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="card">
+                                                    <div class="card-header">
+                                                        <a class="btn" data-bs-toggle="collapse" href="#collapse4">
+                                                            SP2
+                                                        </a>
+                                                    </div>
+                                                    <div id="collapse4" class="collapse" data-bs-parent="#accordion">
+                                                        <div class="card-body">
+                                                            <ul>
+                                                                <li><strong>Số lượng:</strong> 2</li>
+                                                                <li><strong>Giá tiền:</strong> 200,000 VND</li>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Form thông tin cá nhân -->
+                    <form wire:submit.prevent="submitOrder">
+                        <div class="form-group">
+                            <label for="fullName">Họ và tên</label>
+                            <input type="text" wire:model="fullName" id="fullName" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" wire:model="email" id="email" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Số điện thoại</label>
+                            <input type="text" wire:model="phone" id="phone" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="address">Địa chỉ</label>
+                            <input type="text" wire:model="address" id="address" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="note">Ghi chú</label>
+                            <textarea wire:model="note" id="note" class="form-control" rows="4"></textarea>
+                        </div>
+
+                        <!-- Phương thức thanh toán -->
+                        <div class="form-group">
+                            <label for="paymentMethod">Phương thức thanh toán</label>
+                            <div class="radio-group" style="display: flex; gap: 20px;">
+
+                                <!-- Bank Payment Option -->
+                                <div class="radio-option" style="display: flex; align-items: center;">
+                                    <input type="radio" id="paymentMethodBank" name="paymentMethod" wire:model="paymentMethod" value="bank" class="hidden-radio">
+                                    <label for="paymentMethodBank" class="payment-label">
+                                        <img src="https://play-lh.googleusercontent.com/eropcks-sakGkOkCHQzpd87FKK4efHTLY5b93H2FwNLjoPnPcAMSzOHsm3s6lguSgw" alt="Bank Payment" class="payment-image">
+                                        Thanh toán qua ngân hàng
+                                    </label>
+                                </div>
+
+                                <!-- Wallet Payment Option -->
+                                <div class="radio-option" style="display: flex; align-items: center;">
+                                    <input type="radio" id="paymentMethodWallet" name="paymentMethod" wire:model="paymentMethod" value="wallet" class="hidden-radio" {{ $walletBalance >= $total ? '' : 'disabled' }}>
+                                    <label for="paymentMethodWallet" class="payment-label" style="{{ $walletBalance < $total ? 'opacity: 0.5; pointer-events: none;' : '' }}">
+                                        <img src="https://img.icons8.com/ios-filled/50/000000/wallet--v1.png" alt="Wallet Payment" class="payment-image">
+                                        Sử dụng số dư trong tài khoản
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <style>
+                            /* Ẩn radio button */
+                            .hidden-radio {
+                                position: absolute;
+                                opacity: 0;
+                                width: 0;
+                                height: 0;
+                            }
+
+                            /* CSS cho nhãn thanh toán */
+                            .payment-label {
+                                display: flex;
+                                align-items: center;
+                                cursor: pointer;
+                                padding: 10px;
+                                border: 1px solid #ddd;
+                                border-radius: 5px;
+                                transition: background-color 0.3s, border-color 0.3s;
+                            }
+
+                            /* Thêm hiệu ứng khi hover */
+                            .payment-label:hover {
+                                background-color: #f0f0f0;
+                            }
+
+                            /* Hình ảnh thanh toán */
+                            .payment-image {
+                                width: 50px;
+                                height: 50px;
+                                margin-right: 10px;
+                            }
+
+                            /* Hiệu ứng "active" khi radio được chọn */
+                            input[type="radio"]:checked+.payment-label {
+                                background-color: #d1e7ff;
+                                border-color: #0071dc;
+                            }
+
+                            /* CSS cho trạng thái vô hiệu hóa */
+                            .payment-label[disabled] {
+                                cursor: not-allowed;
+                                opacity: 0.5;
+                            }
+
+                        </style>
+
+
+
+
+                        <button type="submit" class="btn btn-success mt-3">Xác nhận thanh toán</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>

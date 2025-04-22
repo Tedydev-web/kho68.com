@@ -1,0 +1,142 @@
+<?php
+
+namespace App\Livewire;
+
+use App\Models\Order;
+
+use App\Models\OrderItem;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Session ;
+use Livewire\Component;
+
+
+class Checkout extends Component
+{
+    public $cartItems = [];
+    public $total = 0;
+    public $paymentMethod = 'vnpay'; // Lưu phương thức thanh toán, mặc định là 'vnpay'
+    public $shippingPrice = 50000; // Ví dụ: phí vận chuyển mặc định
+
+    public function mount()
+    {
+        $cart = Auth::user()->cart; // Sử dụng quan hệ cart đã định nghĩa trong User
+
+        if ($cart) {
+            $this->cartItems = collect($cart->items); // Lấy các mục trong giỏ hàng
+            $this->total = $cart->total; // Tổng giá trị giỏ hàng
+        }
+    }
+
+    public function submitOrder()
+    {
+
+        // if ($this->cartItems->isEmpty()) {
+        //     session()->flash('faweff');
+        //     return;
+        // }
+
+        // Tạo đơn hàng mới
+        $order = Order::create([
+            'user_id' => Auth::id(),
+            'total' => $this->total,
+            'status' => 'pending',
+            'payment_method' => $this->paymentMethod,
+        ]);
+
+        // Lưu các mục trong giỏ hàng vào bảng order_items
+        foreach ($this->cartItems as $item) {
+            OrderItem::create([
+                'order_id' => $order->id,
+                'social_account_product_id' => $item->social_account_product_id,
+                'wordpress_product_id' => $item->wordpress_product_id,
+                'course_product_id' => $item->course_product_id,
+                'other_product_id' => $item->other_product_id,
+                'attribute_id' => $item->attribute_id,
+                'quantity' => $item->quantity,
+                'price' => $item->price,
+                'subtotal' => $item->subtotal,
+            ]);
+        }
+        $cart = Auth::user()->cart;
+        if ($cart) {
+            $cart->items()->delete();  // Xóa tất cả các mục trong giỏ hàng
+            $cart->delete();           // Xóa luôn giỏ hàng nếu cần
+        }
+        // Logic đặc biệt nếu phương thức thanh toán là VNPAY
+        if ($this->paymentMethod == 'vnpay') {
+
+            $this->handleVnpayPayment($order);
+        } else {
+            // Thanh toán thông thường
+            $order->status = 'completed';
+            $order->save();
+
+            return redirect()->route('order.success');
+        }
+    }
+
+    // Hàm xử lý logic thanh toán qua VNPAY
+    private function handleVnpayPayment($order)
+    {
+        $totalAmount = $this->total;
+
+        // Cộng phí vận chuyển và áp dụng giảm giá (nếu có)
+        if (Session::get('discount')) {
+            $totalAmount -= $totalAmount * (Session::get('discount') / 100);
+
+        }
+
+        // Cập nhật thông tin đơn hàng
+
+        $order->total = $totalAmount;
+        $order->save();
+        Session::forget('discount');
+
+        // Logic VNPAY
+        $vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+        $vnp_Returnurl = "http://localhost:8000/checkpayment";
+        $vnp_TmnCode = "R3E63P5P"; // Mã website tại VNPAY
+        $vnp_HashSecret = "GXDEHIEBSREFTEALNKYBXMKDKVVBEJPC"; // Chuỗi bí mật
+
+        $vnp_TxnRef = $order->id; // Mã đơn hàng
+        $vnp_OrderInfo = 'Thanh Toán đơn hàng tại Electro';
+        $vnp_OrderType = 'bank';
+        $vnp_Amount = round($totalAmount * 100); // VND
+        $vnp_Locale = 'vn';
+        $vnp_BankCode = 'NCB';
+        $vnp_IpAddr = $_SERVER['REMOTE_ADDR'];
+
+        $inputData = [
+            "vnp_Version" => "2.1.0",
+            "vnp_TmnCode" => $vnp_TmnCode,
+            "vnp_Amount" => $vnp_Amount,
+            "vnp_Command" => "pay",
+            "vnp_CreateDate" => date('YmdHis'),
+            "vnp_CurrCode" => "VND",
+            "vnp_IpAddr" => $vnp_IpAddr,
+            "vnp_Locale" => $vnp_Locale,
+            "vnp_OrderInfo" => $vnp_OrderInfo,
+            "vnp_OrderType" => $vnp_OrderType,
+            "vnp_ReturnUrl" => $vnp_Returnurl,
+            "vnp_TxnRef" => $vnp_TxnRef,
+        ];
+
+        // Sắp xếp và tạo URL thanh toán
+        ksort($inputData);
+        $hashdata = http_build_query($inputData);
+        $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
+        $vnp_Url .= "?" . $hashdata . "&vnp_SecureHash=" . $vnpSecureHash;
+        // Chuyển hướng đến trang thanh toán VNPAY
+        return redirect(  $vnp_Url);
+        die();
+    }
+
+    public function render()
+    {
+
+        return view('livewire.checkout', [
+            'cartItems' => $this->cartItems,
+            'total' => $this->total,
+        ]);
+    }
+}
